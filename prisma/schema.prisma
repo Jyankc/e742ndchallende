@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Source {
+  orders
+  refunds
+  email_events
+  ad_spend
+}
+
+enum RunStatus {
+  processing
+  completed
+  failed
+}
+
+model IngestionRun {
+  id              String    @id @default(uuid()) @db.Uuid
+  company_id      String
+  source          Source
+  idempotency_key String
+  file_path       String
+  file_hash       String
+  status          RunStatus @default(processing)
+  error           String?
+  inserted_count  Int       @default(0)
+  duplicate_count Int       @default(0)
+  created_at      DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@unique([company_id, source, idempotency_key])
+  @@map("ingestion_runs")
+}
+
+model Order {
+  company_id     String
+  order_id       String
+  created_at     DateTime @db.Timestamptz(3)
+  channel        String
+  gross          Decimal  @db.Decimal(18, 2)
+  currency       String
+  customer_email String
+  record_hash    String
+
+  @@id([company_id, order_id])
+  @@map("orders")
+}
+
+model Refund {
+  company_id  String
+  refund_id   String
+  refunded_at DateTime @db.Timestamptz(3)
+  order_id    String
+  amount      Decimal  @db.Decimal(18, 2)
+  currency    String
+  record_hash String
+
+  @@id([company_id, refund_id])
+  @@map("refunds")
+}
+
+model EmailEvent {
+  company_id  String
+  event_id    String
+  type        String
+  email       String
+  campaign_id String
+  occurred_at DateTime @db.Timestamptz(3)
+  record_hash String
+
+  @@id([company_id, event_id])
+  @@map("email_events")
+}
+
+model AdSpend {
+  company_id  String
+  date        DateTime @db.Date
+  campaign_id String
+  platform    String
+  spend       Decimal  @db.Decimal(18, 2)
+  record_hash String
+
+  // Deliberately keep the agreed date + channel key for this first iteration.
+  @@id([company_id, date, platform])
+  @@map("ad_spend")
+}
