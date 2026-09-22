@@ -15,19 +15,41 @@ enum Source {
 }
 
 enum RunStatus {
+  pending
   processing
   completed
   failed
 }
 
+model Company {
+  id   String @id
+  name String
+
+  runs        IngestionRun[]
+  orders      Order[]
+  refunds     Refund[]
+  emailEvents EmailEvent[]
+  adSpend     AdSpend[]
+
+  @@map("companies")
+}
+
 model IngestionRun {
+  company Company @relation(fields: [company_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   id              String    @id @default(uuid()) @db.Uuid
   company_id      String
   source          Source
   idempotency_key String
+  uploaded_by     String?
+  reused_run_id   String?   @db.Uuid
   file_path       String
   file_hash       String
-  status          RunStatus @default(processing)
+  status          RunStatus @default(pending)
+  attempt_count   Int       @default(0)
+  claim_token     String?   @db.Uuid
+  lease_expires_at DateTime? @db.Timestamptz(3)
+  next_attempt_at DateTime  @default(now()) @db.Timestamptz(3)
+  error_code      Int?
   error           String?
   inserted_count  Int       @default(0)
   duplicate_count Int       @default(0)
@@ -35,10 +57,14 @@ model IngestionRun {
   updated_at      DateTime  @updatedAt @db.Timestamptz(3)
 
   @@unique([company_id, source, idempotency_key])
+  @@index([company_id, source, file_hash, status])
+  @@index([status, next_attempt_at, created_at])
+  @@index([status, lease_expires_at])
   @@map("ingestion_runs")
 }
 
 model Order {
+  company Company @relation(fields: [company_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   company_id     String
   order_id       String
   created_at     DateTime @db.Timestamptz(3)
@@ -47,12 +73,14 @@ model Order {
   currency       String
   customer_email String
   record_hash    String
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@id([company_id, order_id])
   @@map("orders")
 }
 
 model Refund {
+  company Company @relation(fields: [company_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   company_id  String
   refund_id   String
   refunded_at DateTime @db.Timestamptz(3)
@@ -60,12 +88,14 @@ model Refund {
   amount      Decimal  @db.Decimal(18, 2)
   currency    String
   record_hash String
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@id([company_id, refund_id])
   @@map("refunds")
 }
 
 model EmailEvent {
+  company Company @relation(fields: [company_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   company_id  String
   event_id    String
   type        String
@@ -73,20 +103,22 @@ model EmailEvent {
   campaign_id String
   occurred_at DateTime @db.Timestamptz(3)
   record_hash String
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@id([company_id, event_id])
   @@map("email_events")
 }
 
 model AdSpend {
+  company Company @relation(fields: [company_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   company_id  String
   date        DateTime @db.Date
   campaign_id String
   platform    String
   spend       Decimal  @db.Decimal(18, 2)
   record_hash String
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(3)
 
-  // Deliberately keep the agreed date + channel key for this first iteration.
-  @@id([company_id, date, platform])
+  @@id([company_id, date, platform, campaign_id])
   @@map("ad_spend")
 }

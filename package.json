@@ -8,7 +8,11 @@
     "db:migrate": "prisma migrate deploy",
     "build": "prisma generate && tsc",
     "start": "node dist/server.js",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "fixtures": "tsx scripts/run-fixtures.ts",
+    "worker": "tsx src/worker.ts",
+    "worker:start": "node dist/worker.js",
+    "reset:companies": "tsx scripts/reset-companies.ts"
   },
   "keywords": [],
   "author": "",

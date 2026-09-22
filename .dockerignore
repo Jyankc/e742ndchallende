@@ -1,0 +1,9 @@
+node_modules
+dist
+src/generated
+.git
+.env
+.env.*
+*.log
+fixture-results.json
+.DS_Store

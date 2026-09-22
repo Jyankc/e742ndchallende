@@ -1,0 +1,5 @@
+-- Existing records receive the migration timestamp; their historical update time is unknown.
+ALTER TABLE "orders" ADD COLUMN "updated_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "refunds" ADD COLUMN "updated_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "email_events" ADD COLUMN "updated_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "ad_spend" ADD COLUMN "updated_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

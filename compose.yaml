@@ -1,14 +1,62 @@
+x-app: &app
+  build: .
+  init: true
+  environment:
+    DATABASE_URL: postgresql://ingestion:ingestion@postgres:5432/ingestion
+    STORAGE_DIR: /app/storage_simulation
+    PORT: 3000
+  volumes:
+    - ./storage_simulation:/app/storage_simulation
+
 services:
   postgres:
     image: postgres:17
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ingestion
       POSTGRES_PASSWORD: ingestion
       POSTGRES_DB: ingestion
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ingestion -d ingestion"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  migrate:
+    <<: *app
+    command: ["npm", "run", "db:migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command: ["node", "dist/server.js"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/companies').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    stop_grace_period: 70s
+
+  worker:
+    <<: *app
+    command: ["node", "dist/worker.js"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 70s
 
 volumes:
   postgres_data:
